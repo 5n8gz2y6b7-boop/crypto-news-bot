@@ -6,7 +6,25 @@ import os
 from dataclasses import dataclass, field
 
 SOL_MINT = "So11111111111111111111111111111111111111112"
+USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
 LAMPORTS = 1_000_000_000
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ENV_FILE = os.environ.get("MEMECOIN_ENV_FILE", os.path.join(ROOT, ".env"))
+
+
+def load_env(path=ENV_FILE):
+    """Charge le fichier .env (sans dépendance). Les variables déjà définies dans l'environnement priment."""
+    if not os.path.exists(path):
+        return False
+    with open(path, encoding="utf-8") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, val = line.split("=", 1)
+            val = val.split(" #", 1)[0].split("\t#", 1)[0].strip().strip('"').strip("'")
+            os.environ.setdefault(key.strip(), val)
+    return True
 
 
 def _f(name, default):
@@ -67,4 +85,4 @@ class Config:
     telegram_token: str = field(default_factory=lambda: os.environ.get("TELEGRAM_TOKEN", ""))
     telegram_chat_id: str = field(default_factory=lambda: os.environ.get("TELEGRAM_CHAT_ID", ""))
     state_file: str = field(default_factory=lambda: os.environ.get(
-        "MEMECOIN_STATE_FILE", os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "memecoin_state.json")))
+        "MEMECOIN_STATE_FILE", os.path.join(ROOT, "memecoin_state.json")))

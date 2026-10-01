@@ -20,27 +20,47 @@ Notifications Telegram (mêmes secrets que le bot de news).
 | 6. Sorties | TP +60 %, SL −20 %, trailing −15 % depuis le pic (activé à +25 %), 4 h max |
 | 7. Risque | 0,05 SOL/trade, 3 positions max, réserve SOL pour les frais, limite de perte journalière, cooldown par token |
 
-## Installation
-```bash
-pip install -r requirements-memecoin.txt
-cp .env.example .env        # puis édite les valeurs
-set -a; source .env; set +a
-python -m memecoin_bot.main            # boucle continue
-```
-Commandes : `--once` (un cycle), `--status` (positions + PnL), `--sell-all` (vend tout).
-Créer un fichier `STOP` dans le dossier courant bloque toute nouvelle entrée (les sorties continuent).
+## Démarrage rapide (3 étapes)
 
-## Brancher Phantom
-1. Dans Phantom : **Ajouter / connecter un compte → Créer un nouveau compte** (wallet dédié au bot).
-2. Envoie-lui un petit montant de SOL.
-3. **Paramètres → Gérer les comptes → [ce compte] → Afficher la clé privée** → copie-la.
-4. Mets-la dans `PHANTOM_PRIVATE_KEY` du fichier `.env` (jamais dans le code, jamais sur GitHub).
-5. Les achats/ventes du bot apparaissent directement dans Phantom.
+**1. Prépare Phantom** (2 min)
+- Phantom → icône du compte → **Ajouter / connecter un compte → Créer un nouveau compte** (wallet dédié au bot).
+- Envoie-lui le SOL que tu acceptes de risquer (ex. 0,3 SOL).
+- **Paramètres → Gérer les comptes → [ce compte] → Afficher la clé privée** → copie-la.
+  (Jamais la phrase de récupération : le bot la refuse.)
+
+**2. Télécharge le bot** : *Code → Download ZIP* sur GitHub (branche du bot), puis dézippe.
+Il faut [Python 3.10+](https://www.python.org/downloads/) (sous Windows, coche « Add Python to PATH »).
+
+**3. Lance-le**
+- **Windows** : double-clique `start.bat`
+- **Mac / Linux** : `./start.sh` dans un terminal
+
+Au premier lancement, tout s'installe tout seul puis l'assistant te demande la clé privée
+(saisie masquée), affiche l'adresse du wallet pour que tu vérifies qu'elle correspond à Phantom,
+puis la mise, le mode (papier / réel) et Telegram. Il écrit un fichier `.env` local
+(permissions 600, ignoré par git). Ensuite le bot vérifie tout (`--check`) et démarre.
+Ses achats/ventes apparaissent directement dans Phantom.
+
+| Commande (Windows : `start.bat …`) | Effet |
+|---|---|
+| `./start.sh` | vérifie puis lance le bot (Ctrl+C pour l'arrêter, les positions restent suivies) |
+| `./start.sh --check` | teste clé, solde, RPC, Jupiter, DexScreener sans trader |
+| `./start.sh --status` | positions ouvertes + PnL du jour |
+| `./start.sh --sell-all` | vend toutes les positions (bouton panique) |
+| `./start.sh --connect` | reconfigure (changer de wallet, de mise, passer en réel…) |
+
+Un fichier `STOP` dans le dossier bloque toute nouvelle entrée (les sorties continuent).
+
+Sans les lanceurs : `pip install -r requirements-memecoin.txt`, `python -m memecoin_bot.connect`,
+puis `python -m memecoin_bot.main` (le `.env` est chargé automatiquement).
 
 ## Passer en réel
 1. Laisse tourner en papier au moins quelques jours et regarde `--status` / l'historique dans `memecoin_state.json`.
-2. Prends un RPC privé (Helius, QuickNode… le RPC public limite et rate des transactions).
-3. `DRY_RUN=0`, garde `POSITION_SOL` petit.
+2. Prends un RPC privé gratuit (helius.dev, quicknode.com) : le RPC public limite et rate des transactions.
+3. `./start.sh --connect` → réponds « o » au mode réel et tape `REEL`. Garde une petite mise.
+
+Sécurité : la clé ne quitte jamais ta machine (elle sert seulement à signer localement les swaps Jupiter).
+Ne mets jamais `.env` sur GitHub ni dans un message ; si tu penses qu'elle a fuité, vide ce compte Phantom.
 
 Hébergement : un VPS ou un PC allumé 24/7. **Pas GitHub Actions** — les cycles de 5 min sont trop lents
 pour gérer les stops, et une clé privée n'a rien à faire sur un runner partagé.

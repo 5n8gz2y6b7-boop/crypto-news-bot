@@ -6,6 +6,9 @@ Bot quant memecoins Solana -> exécution sur le wallet Phantom via Jupiter.
   python -m memecoin_bot.main --once     un seul cycle
   python -m memecoin_bot.main --status   positions + PnL
   python -m memecoin_bot.main --sell-all vend toutes les positions (bouton panique)
+  python -m memecoin_bot.main --check    vérifie wallet, RPC, Jupiter, DexScreener (aucun trade)
+
+Configuration : fichier .env à la racine (créé par  python -m memecoin_bot.connect).
 
 Fichier STOP dans le dossier courant -> plus aucune nouvelle entrée (les sorties continuent).
 """
@@ -14,7 +17,7 @@ import sys
 import time
 
 from . import dexscreener, safety, strategy
-from .config import Config
+from .config import ENV_FILE, LAMPORTS, SOL_MINT, USDC_MINT, Config, load_env
 from .jupiter import Jupiter
 from .notifier import Notifier
 from .solana_rpc import SolanaRPC
@@ -115,13 +118,79 @@ def status(cfg, trader):
         print(f"  {p['symbol']:<10} coût {p['cost_sol']:.4f} · valeur {v if v is None else round(v, 4)}")
 
 
+def check(cfg, rpc, jup):
+    """Vérifie toute la chaîne sans trader. Renvoie True si le bot peut tourner dans le mode choisi."""
+    ok = True
+
+    def line(good, label, detail=""):
+        nonlocal ok
+        ok &= good
+        print(f"  {'✅' if good else '❌'} {label}{' : ' + detail if detail else ''}")
+
+    print(f"Mode : {'PAPIER (aucune transaction)' if cfg.dry_run else 'RÉEL'}")
+    line(os.path.exists(ENV_FILE), "fichier .env", ENV_FILE if os.path.exists(ENV_FILE)
+         else "absent, lance : python -m memecoin_bot.connect")
+    pub = None
+    try:
+        from .wallet import PhantomWallet
+        pub = PhantomWallet(cfg.phantom_private_key).pubkey
+        line(True, "clé Phantom", pub)
+    except Exception as ex:
+        if cfg.dry_run:
+            print("  ➖ clé Phantom : non configurée (facultatif en papier)")
+        else:
+            line(False, "clé Phantom", str(ex))
+    try:
+        slot = rpc.call("getSlot")
+        line(True, "RPC Solana", f"{cfg.rpc_url.split('?')[0]} (slot {slot})")
+        if pub:
+            sol = rpc.sol_balance(pub) / LAMPORTS
+            need = cfg.position_sol + cfg.sol_reserve
+            good = cfg.dry_run or sol >= need
+            line(good, "solde wallet", f"{sol:.4f} SOL" + ("" if sol >= need else
+                 f" (il faut ≥ {need:.3f} SOL pour un trade : envoie du SOL sur {pub})"))
+    except Exception as ex:
+        line(False, "RPC Solana", str(ex))
+    try:
+        q = jup.quote(SOL_MINT, USDC_MINT, int(cfg.position_sol * LAMPORTS))
+        line(bool(q), "Jupiter", f"{cfg.position_sol} SOL ≈ {int(q['outAmount']) / 1e6:.2f} USDC" if q else "pas de cotation")
+    except Exception as ex:
+        line(False, "Jupiter", str(ex))
+    try:
+        n = len(dexscreener.candidate_mints())
+        line(n > 0, "DexScreener", f"{n} tokens candidats")
+    except Exception as ex:
+        line(False, "DexScreener", str(ex))
+    if cfg.telegram_token and cfg.telegram_chat_id:
+        print("  ✅ Telegram configuré")
+    print(f"Risque : {cfg.position_sol} SOL/trade · {cfg.max_positions} positions max · "
+          f"stop journalier −{cfg.daily_loss_limit_sol} SOL · TP +{cfg.take_profit_pct:g}% · SL −{cfg.stop_loss_pct:g}%")
+    print("➡️  Tout est prêt : python -m memecoin_bot.main" if ok else "➡️  Corrige les ❌ ci-dessus puis relance --check")
+    return ok
+
+
 def cycle(cfg, rpc, jup, trader, notify):
     manage_exits(cfg, trader, notify)
     find_entries(cfg, trader, rpc, jup, notify)
 
 
 def main():
-    cfg, rpc, jup, state, trader, notify = build()
+    load_env()
+    if "--check" in sys.argv:
+        cfg = Config()
+        sys.exit(0 if check(cfg, SolanaRPC(cfg.rpc_url), Jupiter(cfg)) else 1)
+    try:
+        cfg, rpc, jup, state, trader, notify = build()
+    except ValueError as ex:
+        sys.exit(f"❌ {ex}")
+    if not cfg.dry_run and not any(a in sys.argv for a in ("--status", "--sell-all")):
+        try:
+            sol = trader.sol_available()
+        except Exception as ex:
+            sys.exit(f"❌ RPC Solana injoignable ({ex}). Lance --check pour diagnostiquer.")
+        if sol < cfg.position_sol + cfg.sol_reserve:
+            print(f"⚠️ Solde {sol:.4f} SOL insuffisant pour acheter ({cfg.position_sol} + réserve {cfg.sol_reserve}). "
+                  f"Le bot tourne mais n'achètera rien : envoie du SOL sur {trader.wallet.pubkey}")
     if "--status" in sys.argv:
         return status(cfg, trader)
     if "--sell-all" in sys.argv:
@@ -130,12 +199,16 @@ def main():
         return cycle(cfg, rpc, jup, trader, notify)
     who = "papier" if cfg.dry_run else trader.wallet.pubkey
     notify.send(f"🤖 Bot memecoins démarré ({who}) · {cfg.position_sol} SOL/trade · max {cfg.max_positions} positions")
-    while True:
-        try:
-            cycle(cfg, rpc, jup, trader, notify)
-        except Exception as ex:
-            print("Erreur cycle:", ex)
-        time.sleep(cfg.scan_interval)
+    try:
+        while True:
+            try:
+                cycle(cfg, rpc, jup, trader, notify)
+            except Exception as ex:
+                print("Erreur cycle:", ex)
+            time.sleep(cfg.scan_interval)
+    except KeyboardInterrupt:
+        trader.state.save()
+        print("\nBot arrêté. Positions ouvertes conservées (relance pour continuer à les gérer, ou --sell-all).")
 
 
 if __name__ == "__main__":
