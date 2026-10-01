@@ -1,0 +1,6 @@
+.env
+memecoin_state.json
+memecoin_state.json.tmp
+STOP
+__pycache__/
+.pytest_cache/
