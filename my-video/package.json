@@ -23,6 +23,8 @@
     "dev": "remotion studio",
     "build": "remotion bundle",
     "upgrade": "remotion upgrade",
-    "lint": "eslint src && tsc"
+    "lint": "eslint src && tsc",
+    "ai-video": "NODE_USE_ENV_PROXY=1 node scripts/generate-ai-video.mjs",
+    "render:pro": "remotion render DanceIntroPro out/intro-pro.mp4"
   }
 }

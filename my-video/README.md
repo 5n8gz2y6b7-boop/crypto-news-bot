@@ -52,3 +52,9 @@ Found an issue with Remotion? [File an issue here](https://github.com/remotion-d
 ## License
 
 Note that for some entities a company license is needed. [Read the terms here](https://github.com/remotion-dev/remotion/blob/main/LICENSE.md).
+
+## Intro pro (vidéo IA avec Google Veo)
+
+1. Mettre une clé Gemini API (https://aistudio.google.com/apikey, facturation activée) dans `GEMINI_API_KEY`.
+2. `npm run ai-video` : génère `public/ai-dance.mp4` (8 s, 9:16) à partir de `public/dancer-source.png`.
+3. `npm run render:pro` : monte l'intro de 10 s dans `out/intro-pro.mp4`.

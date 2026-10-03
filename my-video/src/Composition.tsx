@@ -55,7 +55,8 @@ const pose = (f: number, energy: number) => {
   const scaleY = 1 + (0.04 * (1 - landing) - 0.05 * landing) * energy;
   const scaleXSquash = 1 + 0.04 * landing * energy;
   const sway = Math.sin((2 * Math.PI * f) / (BEAT * 2)) * 7 * energy;
-  const hips = Math.sin((2 * Math.PI * f) / (BEAT * 2) + Math.PI / 2) * 5 * energy;
+  const hips =
+    Math.sin((2 * Math.PI * f) / (BEAT * 2) + Math.PI / 2) * 5 * energy;
   const step = Math.sin((2 * Math.PI * f) / (BEAT * 4)) * 110 * energy;
 
   // Two quick spins (a horizontal flip that reads as a turn).
@@ -153,7 +154,7 @@ const Lights: React.FC<{ frame: number; energy: number }> = ({
   );
 };
 
-const Sparkles: React.FC<{ progress: number; frame: number }> = ({
+export const Sparkles: React.FC<{ progress: number; frame: number }> = ({
   progress,
   frame,
 }) => {
@@ -167,7 +168,12 @@ const Sparkles: React.FC<{ progress: number; frame: number }> = ({
   return (
     <AbsoluteFill>
       {items.map((it, i) => {
-        const local = interpolate(progress, [i * 0.1, i * 0.1 + 0.4], [0, 1], clamp);
+        const local = interpolate(
+          progress,
+          [i * 0.1, i * 0.1 + 0.4],
+          [0, 1],
+          clamp,
+        );
         const twinkle = 0.7 + 0.3 * Math.sin(frame / 3 + i);
         return (
           <div
