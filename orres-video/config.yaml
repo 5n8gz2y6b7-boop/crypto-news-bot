@@ -1,0 +1,133 @@
+# Configuration du générateur de vidéos Les Orres.
+# Tous les chemins relatifs sont résolus depuis le dossier de ce fichier.
+
+tts:
+  engine: edge               # edge (défaut, gratuit) | piper (hors ligne) | espeak (test, voix robotique)
+  voices:                    # voix par défaut si info.yaml ne précise pas "voix"
+    fr: fr-FR-DeniseNeural
+    en: en-GB-SoniaNeural
+  rate: "+0%"                # vitesse edge-tts, ex. "-5%" pour ralentir
+  pitch: "+0Hz"
+  connect_timeout_s: 10
+  receive_timeout_s: 60
+  piper:
+    executable: piper        # binaire installé par `pip install piper-tts`
+    models:                  # modèles .onnx téléchargés à la main (voir README)
+      fr: models/piper/fr_FR-siwis-medium.onnx
+      en: models/piper/en_GB-alba-medium.onnx
+    length_scale: 1.0        # > 1 = plus lent
+  espeak:
+    voices: {fr: fr, en: en-gb}
+    speed_wpm: 150
+  gap_s: 0.15                # silence entre deux segments
+  loudness_lufs: -16
+  true_peak_db: -1.5
+
+alignment:                   # utilisé si le moteur ne donne pas de timestamps par mot
+  whisper_model: small
+  device: cpu
+  compute_type: int8
+  allow_proportional_fallback: true   # estimation par longueur de mot si faster-whisper absent
+
+script:
+  min_words: 50
+  max_words: 65
+  segment_min_words: 6
+  segment_max_words: 12
+  min_segments: 6
+  max_segments: 8
+  max_points_forts: 4
+  # Type de plan par défaut selon la position de la photo (01.jpg = premier).
+  # Surchargeable avec "plans:" dans info.yaml.
+  default_plans: ["extérieur", "séjour", "chambre", "cuisine", "salle de bain", "vue", "extérieur", "séjour"]
+  # Mots qui décrivent un équipement/service : interdits s'ils n'apparaissent pas dans info.yaml.
+  risky_terms_fr: [piscine, spa, sauna, jacuzzi, hammam, wifi, wi-fi, parking, garage, cheminée, balcon,
+                   terrasse, jardin, vue, lac, navette, mètres, km, minutes, pistes, télésiège, remontées,
+                   climatisation, lave-vaisselle, ascenseur, animaux, petit-déjeuner, restaurant, bar]
+  risky_terms_en: [pool, spa, sauna, jacuzzi, hot tub, wifi, wi-fi, parking, garage, fireplace, balcony,
+                   terrace, garden, view, lake, shuttle, meters, km, minutes, slopes, chairlift, lift,
+                   air conditioning, dishwasher, elevator, pets, breakfast, restaurant, bar]
+
+video:
+  width: 1080
+  height: 1920
+  fps: 30
+  crf: 18
+  preset: medium
+  xfade_s: 0.4
+  lead_in_s: 0.5             # image avant le début de la voix
+  outro_s: 2.2               # carte de fin après la dernière phrase
+  min_total_s: 18
+  max_total_s: 28
+  max_slowdown: 0.8          # vitesse minimale d'un clip Kling trop court (x0.8)
+  kenburns:
+    zoom_max: 1.12
+    supersample: 2           # rendu interne x2 pour un zoom sans saccade
+
+subtitles:
+  font_name: Montserrat ExtraBold
+  title_font_name: Montserrat ExtraBold
+  body_font_name: Montserrat Bold
+  fonts_dir: assets/fonts
+  font_size: 76
+  min_words_per_group: 2
+  max_words_per_group: 4
+  max_chars_per_line: 22
+  max_lines: 2
+  margin_top: 150            # zones de sécurité réseaux sociaux
+  margin_bottom: 250
+  margin_side: 90
+  position_y: 1440           # bas du bloc de sous-titres (tiers inférieur, au-dessus des 250 px)
+  outline: 5
+  shadow: 3
+  fade_in_ms: 80
+  pop_ms: 120
+  pop_scale: 115
+  linger_s: 0.25             # durée d'affichage du dernier groupe après le dernier mot
+
+palettes:
+  hiver:
+    text: "#FFFFFF"
+    accent: "#38BDF8"        # mot prononcé
+    keyword: "#BAE6FD"       # mots clés (nom, points forts, prix)
+    outline: "#0B1F3A"
+    card_bg: "#0B2545"
+    card_text: "#F0F9FF"
+  ete:
+    text: "#FFFFFF"
+    accent: "#A3D139"
+    keyword: "#F2B35B"
+    outline: "#26331A"
+    card_bg: "#2F3E1F"
+    card_text: "#FFF8E7"
+
+music:
+  dir: assets/music          # assets/music/hiver/*.mp3, assets/music/ete/*.mp3 (ou fichiers à la racine)
+  level_lufs: -26            # niveau de la musique avant ducking
+  duck_threshold: 0.03
+  duck_ratio: 8
+  duck_attack_ms: 20
+  duck_release_ms: 400
+  fade_in_s: 1.0
+  fade_out_s: 1.8
+
+kling:
+  # Rempli après who_am_i (ne rien inventer) : modèle, nom des arguments, durées autorisées.
+  model: null
+  aspect_ratio_value: "9:16"
+  allowed_durations: [5, 10] # À CONFIRMER via who_am_i avant toute génération
+  credits_per_clip: {}       # ex. {"5": 20, "10": 40} — à confirmer via query_membership_and_credits
+  poll_interval_s: 12
+  timeout_s: 900
+  max_image_side: 3800       # < 4K
+  max_bytes: 30000000
+  max_aspect: 2.0            # pas plus large que 1:2
+  prompt_suffix: "soft natural light, realistic, no new objects, no people, no text"
+  motion_prompts:
+    extérieur: "slow dolly forward toward the building"
+    séjour: "slow lateral pan across the living room"
+    chambre: "gentle slow push-in on the bed"
+    cuisine: "slow lateral pan along the kitchen"
+    salle de bain: "very slow push-in"
+    vue: "slow pan across the landscape"
+    default: "slow dolly forward"

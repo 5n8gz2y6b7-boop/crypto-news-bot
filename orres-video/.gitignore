@@ -1,0 +1,8 @@
+output/
+cache/
+input/
+models/
+examples/music/
+__pycache__/
+.pytest_cache/
+*.pyc
